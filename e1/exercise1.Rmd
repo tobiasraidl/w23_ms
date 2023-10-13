@@ -1,0 +1,96 @@
+---
+title: "Exercise 1"
+author: "Tobias Raidl, 11717659"
+date: "2023-10-13"
+output: pdf_document
+header-includes:
+  \usepackage{fvextra}
+  \DefineVerbatimEnvironment{Highlighting}{Verbatim}{breaklines,commandchars=\\\{\}}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, tidy=TRUE)
+```
+
+### Setup Dataset
+```{r}
+library("pgmm")
+data(wine)
+wine
+```
+### 1.
+```{r}
+library(MASS)
+parcoord(wine, col=wine$Type)
+```
+
+### 2.
+```{r}
+library(dplyr)
+grouped_means = wine %>%
+  group_by(Type) %>%
+  summarise_all(list(mean))
+grouped_means
+
+grouped_means_diff = wine %>%
+  summarise_all(list(function(x) diff(range(x))))
+grouped_means_diff
+```
+
+### 3.
+```{r}
+grouped_variances = wine %>%
+  group_by(Type) %>%
+  summarise_all(list(var))
+grouped_variances
+
+grouped_variances_diff = wine %>%
+  summarise_all(list(function(x) diff(range(x))))
+grouped_variances_mean
+```
+
+### 4.
+For the 2 variables with highest mean difference
+```{r}
+max(grouped_means_mean)
+
+highest_diff_variable = colnames(grouped_means_diff)[apply(grouped_means_diff,1,which.max)]
+temp = grouped_means_diff %>%
+  select(-highest_diff_variable)
+second_highest_diff_variable = colnames(temp)[apply(temp,1,which.max)]
+
+max_diff_vars = select(wine, contains(highest_diff_variable), contains(second_highest_diff_variable), Type)
+
+parcoord(max_diff_vars, col=wine$Type)
+plot(max_diff_vars, col=wine$Type)
+```
+For the 2 variables with highest variance difference
+```{r}
+max(grouped_variances_diff)
+
+highest_diff_variable = colnames(grouped_variances_diff)[apply(grouped_variances_mean,1,which.max)]
+temp = grouped_variances_diff %>%
+  select(-highest_diff_variable)
+second_highest_diff_variable = colnames(temp)[apply(temp,1,which.max)]
+
+max_diff_vars = select(wine, contains(highest_diff_variable), contains(second_highest_diff_variable), Type)
+
+parcoord(max_diff_vars, col=wine$Type)
+plot(max_diff_vars, col=wine$Type)
+```
+
+### 5.
+```{r}
+cor_mat = cor(wine)
+heatmap(cor_mat)
+```
+
+### 6.
+```{r}
+temp = eigen(cor_mat)
+
+k=5
+k_eigenvalues = temp$values[1:k]
+k_eigenvectors = temp$vectors[,1:k]
+
+```
