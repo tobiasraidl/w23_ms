@@ -1,0 +1,51 @@
+---
+title: "Exercise 2"
+author: "Tobias Raidl, 11717659"
+date: "2023-10-22"
+output:
+  pdf_document:
+    toc: true
+header-includes:
+  \usepackage{fvextra}
+  \DefineVerbatimEnvironment{Highlighting}{Verbatim}{breaklines,commandchars=\\\{\}}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, tidy=TRUE)
+```
+
+```{r}
+library("pgmm")
+library("dplyr")
+library("ggplot2")
+library("e1071")
+
+data(wine)
+wine$Type = as.factor(wine$Type)
+wine
+```
+# Task 1
+```{r}
+df1 = select(wine, c("Type", "Magnesium", "Total Phenols"))
+ggplot(wine, aes(x=Magnesium, y=`Total Phenols`, colour=Type)) +
+  geom_point()
+
+k = 3
+res.km = kmeans(select(df1, -Type), k, nstart=10)
+y_pred = as.factor(res.km$cluster)
+df1 = cbind(df1, y_pred)
+df1 = mutate(df1, correct_pred = ifelse(Type == y_pred, TRUE, FALSE))
+ggplot(df1, aes(x=Magnesium, y=`Total Phenols`, colour=correct_pred)) +
+  geom_point()
+
+ggplot(df1, aes(x=Magnesium, y=`Total Phenols`, colour=Type)) +
+  geom_point(aes(shape=y_pred))
+
+table(df1$Type, df1$y_pred)
+matchClasses(table(df1$Type, df1$y_pred))
+```
+
+```{r}
+
+
+```
