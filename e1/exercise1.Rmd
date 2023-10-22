@@ -13,10 +13,13 @@ knitr::opts_chunk$set(echo = TRUE, tidy=TRUE)
 ```
 
 ### Setup Dataset
+Standardizing the dataset (not the type column) in order to make means and scales meaningful.
 ```{r}
-library("pgmm")
+library(pgmm)
+library(dplyr)
 data(wine)
-wine
+wine_scaled = data.frame(scale(dplyr::select(wine, -Type)))
+wine = cbind("Type"=wine$Type, wine_scaled)
 ```
 ### 1.
 By using a parallel coordinate system, colored according to each observations TYPE, you can estimate the explanatory power of each variable according to its TYPE. If the colored lines are clustered well it corresponds to a high explanatory power. This only holds if TYPE is perceived as dependent variable.
@@ -26,71 +29,75 @@ parcoord(wine, col=wine$Type)
 ```
 
 ### 2.
-The two variables with the highest difference in mean when aggregated by TYPE are Proline and 2-3 Butanediol. You could compare the mean 
+The two variables with the highest difference in mean when aggregated by TYPE are Flavanoids and OD280.OD315.of.Diluted.Wines. I previously scaled the means for each variable so that it actually conveys information. Therefore it makes sense to compare the means.
 ```{r}
-library(dplyr)
 grouped_means = wine %>%
   group_by(Type) %>%
   summarise_all(list(mean))
-
-#rownames(grouped_means) = grouped_means$Type
 grouped_means
 
-grouped_means_diff = wine %>%
+grouped_means_diff = grouped_means %>%
   summarise_all(list(function(x) diff(range(x)))) %>%
-  select(-Type)
+  dplyr::select(-Type)
 grouped_means_diff
 ```
 
 ### 3.
+The highest difference in variance in between groups can be observed in the variable Chloride Tartaric.Acid. These values convey information aswell, as standardization has been done previously.
 ```{r}
 grouped_variances = wine %>%
   group_by(Type) %>%
   summarise_all(list(var))
 grouped_variances
 
-grouped_variances_diff = wine %>%
+grouped_variances_diff = grouped_variances %>%
   summarise_all(list(function(x) diff(range(x)))) %>%
-  select(-Type)
+  dplyr::select(-Type)
 grouped_variances_diff
 ```
 
 ### 4.
-For the 2 variables with highest mean difference
+Both of the variables seem to cluster well, therefore provide good explanatory power for the Type variable if Type is said to be dependent. They would probably fit well for fitting a model in order to predict Type values of unknown data.
+
+#### Mean difference
 ```{r}
 highest_diff_variable = colnames(grouped_means_diff)[apply(grouped_means_diff,1,which.max)]
 temp = grouped_means_diff %>%
-  select(-highest_diff_variable)
+  dplyr::select(-highest_diff_variable)
 
 second_highest_diff_variable = colnames(temp)[apply(temp,1,which.max)]
 
-print(paste("Variables with highest mean difference grouped by Type are: ", c(highest_diff_variable, second_highest_diff_variable)))
+cat(paste("Variables with highest mean difference grouped by Type are:\n", highest_diff_variable, "\n", second_highest_diff_variable))
 
-max_diff_vars = select(wine, contains(highest_diff_variable), contains(second_highest_diff_variable), Type)
-
-parcoord(max_diff_vars, col=wine$Type)
-plot(max_diff_vars, col=wine$Type)
+par(mfrow = c(1, 2))
+plot(y = wine[[highest_diff_variable]], x = seq(1: nrow(wine)), col=wine$Type,
+ylab = highest_diff_variable, xlab = "Sample")
+plot(y = wine[[second_highest_diff_variable]], x = seq(1:nrow(wine)), col=wine$Type,
+ylab = second_highest_diff_variable, xlab = "Sample")
 ```
-For the 2 variables with highest variance difference
+#### Variance difference
 ```{r}
-max(grouped_variances_diff)
-
 highest_diff_variable = colnames(grouped_variances_diff)[apply(grouped_variances_diff,1,which.max)]
 temp = grouped_variances_diff %>%
-  select(-highest_diff_variable)
+  dplyr::select(-highest_diff_variable)
 second_highest_diff_variable = colnames(temp)[apply(temp,1,which.max)]
 
-max_diff_vars = select(wine, contains(highest_diff_variable), contains(second_highest_diff_variable), Type)
+cat(paste("Variables with highest var difference grouped by Type are:\n", highest_diff_variable, "\n", second_highest_diff_variable))
 
-parcoord(max_diff_vars, col=wine$Type)
-plot(max_diff_vars, col=wine$Type)
+par(mfrow = c(1, 2))
+plot(y = wine[[highest_diff_variable]], x = seq(1: nrow(wine)), col=wine$Type,
+ylab = highest_diff_variable, xlab = "Sample")
+plot(y = wine[[second_highest_diff_variable]], x = seq(1:nrow(wine)), col=wine$Type,
+ylab = second_highest_diff_variable, xlab = "Sample")
 ```
 
 ### 5.
+I chose a color palette with 3 different hue marks, as the interval to be mapped in color is correlation. The first mar (1) is mapped to blue, the second mark (0) is mapped to white and the third mark (-1) to green. 1 corresponds with strong positive correlation, 0 with no correlation and -1 with strong negative correlation.
 ```{r}
 cor_mat = cor(wine)
-print(cor_mat)
-heatmap(cor_mat)
+#print(cor_mat)
+heatmap(cor_mat, symm = TRUE,
+col = colorRampPalette(c("blue", "white", "green"))(100))
 ```
 
 ### 6.
@@ -112,20 +119,15 @@ plot(v)
 ```
 
 ### 7
+Type 1 has a lower mean. This could be a result of Type 1 observations generally lying inbetween Type 2 and Type 3 on most variables. It could also be caused by too few observations being not able to estimate the underlying distributions properly.
 ```{r}
-library(ggplot2)
-
-wine_maha = wine %>%
-  mutate(maha = mahalanobis(wine, center=colMeans(wine), cov(wine))) %>%
-  mutate(maha_grouped = case_when(
-    Type == 1 ~ mahalanobis(wine, center=unlist(grouped_means[1,]), cov(wine)),
-    Type == 2 ~ mahalanobis(wine, center=unlist(grouped_means[2,]), cov(wine)),
-    Type == 3 ~ mahalanobis(wine, center=unlist(grouped_means[3,]), cov(wine))
-    ))
-print(wine_maha)
-
-ggplot() + 
-  geom_point(data = wine_maha, mapping = aes(x=Type, y=maha), color="blue") + 
-  geom_point(data = wine_maha, mapping = aes(x=Type, y=maha_grouped), color="red")
-
+types <- split(wine, wine$Type)
+cov_mat = cov(wine)
+maha <- c(
+as.data.frame(mahalanobis(wine, colMeans(wine), cov(wine))),
+as.data.frame(mahalanobis(types[[1]], colMeans(types[[1]]), cov_mat)),
+as.data.frame(mahalanobis(types[[2]], colMeans(types[[2]]), cov_mat)),
+as.data.frame(mahalanobis(types[[3]], colMeans(types[[3]]), cov_mat))
+)
+boxplot(maha, main="Mahalanobis Distance distributions", names = c('ALL Center', 'Type 1 Center', 'Type 2 Center', 'Type 3 Center'))
 ```
