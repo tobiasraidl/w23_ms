@@ -19,6 +19,10 @@ library("pgmm")
 library("dplyr")
 library("ggplot2")
 library("e1071")
+library("mclust")
+library("factoextra")
+library("robCompositions")
+library("cluster")
 
 data(wine)
 wine$Type = as.factor(wine$Type)
@@ -31,12 +35,8 @@ ggplot(wine, aes(x=Magnesium, y=`Total Phenols`, colour=Type)) +
   geom_point()
 
 k = 3
-res.km = kmeans(select(df1, -Type), k, nstart=10)
-y_pred = as.factor(res.km$cluster)
-df1 = cbind(df1, y_pred)
-df1 = mutate(df1, correct_pred = ifelse(Type == y_pred, TRUE, FALSE))
-ggplot(df1, aes(x=Magnesium, y=`Total Phenols`, colour=correct_pred)) +
-  geom_point()
+res.km1 = kmeans(select(df1, -Type), k, nstart=10)
+df1["y_pred"] = as.factor(res.km1$cluster)
 
 ggplot(df1, aes(x=Magnesium, y=`Total Phenols`, colour=Type)) +
   geom_point(aes(shape=y_pred))
@@ -45,7 +45,98 @@ table(df1$Type, df1$y_pred)
 matchClasses(table(df1$Type, df1$y_pred))
 ```
 
+# Task 2
 ```{r}
+wine[,-c(1)] = scale(wine[,-c(1)])
+df2 = wine
+
+k = 3
+res.km2 = kmeans(select(df2, -Type), center=k)
+
+df2["y_pred"] = as.factor(res.km2$cluster)
+
+ggplot(df2, aes(x=Magnesium, y=`Total Phenols`, colour=Type)) +
+  geom_point(aes(shape=y_pred))
+
+table(df2$Type, df2$y_pred)
+matchClasses(table(df2$Type, df2$y_pred))
+
+```
+
+# Task 3
+```{r}
+df3 = wine
+df3
+df3.dist = dist(select(df3, -Type))
+df3.hc.complete = hclust(df3.dist, method="complete")
+df3.hc.single = hclust(df3.dist, method="single")
+df3.hc.centroid = hclust(df3.dist, method="centroid")
+plot(df3.hc.complete)
+plot(df3.hc.single)
+plot(df3.hc.centroid)
+
+df3["y_pred_complete"] = as.factor(cutree(df3.hc.complete, k=3))
+df3["y_pred_single"] = as.factor(cutree(df3.hc.single, k=3))
+df3["y_pred_centroid"] = as.factor(cutree(df3.hc.centroid, k=3))
+
+cat("\nComplete:\n")
+matchClasses(table(df3$Type, df3$y_pred_complete))
+cat("\nSingle:\n")
+matchClasses(table(df3$Type, df3$y_pred_single))
+cat("\nCentroid:\n")
+matchClasses(table(df3$Type, df3$y_pred_centroid))
+```
+
+# Task 4
+Optimal model is VVE with number of clusters 3.
+```{r}
+df4 = wine
+df4.mc = Mclust(select(df4, -Type), 1:10)
+summary(df4.mc)
+fviz_mclust_bic(df4.mc)
+fviz_mclust(df4.mc, "classification", geom = "point")
+
+df4["y_pred"] = as.factor(df4.mc$classification)
+
+ggplot(df4, aes(x=Magnesium, y=`Total Phenols`, colour=Type)) +
+  geom_point(aes(shape=y_pred))
+
+table(df4$Type, df4$y_pred)
+matchClasses(table(df4$Type, df4$y_pred))
+```
+
+# Task 5
+Observations of type 1 and 3 are predicted with a higher confidence, because their coefficients have a higher difference on average.
+```{r}
+df5 = wine
+df5.cm = cmeans(df5, centers=3)
+df5$y_pred = as.factor(df5.cm$cluster)
+
+table(df5$Type, df5$y_pred)
+matchClasses(table(df5$Type, df5$y_pred))
+ternaryDiag(df5.cm$membership, col=df5$Type)
+```
+
+# Task 7
+K-means with both k=3 and k=4 reach a silhouette width of 0.2.
+```{r}
+df7 = wine
+df7.dist = dist(select(df7, -Type))
+df7.km.k2 = unlist(kmeans(select(df7, -Type), center=2)$cluster)
+df7.km.k3 = unlist(kmeans(select(df7, -Type), center=3)$cluster)
+df7.km.k4 = unlist(kmeans(select(df7, -Type), center=4)$cluster)
+df7.km.k5 = unlist(kmeans(select(df7, -Type), center=5)$cluster)
+
+plot(silhouette(df7.km.k2, df7.dist))
+plot(silhouette(df7.km.k3, df7.dist))
+plot(silhouette(df7.km.k4, df7.dist))
+plot(silhouette(df7.km.k5, df7.dist))
+```
+
+# Task 8
+```{r}
+df8 = wine
+clusGap(select(df8, -Type), FUN=kmeans,K.max=10)
 
 
 ```
