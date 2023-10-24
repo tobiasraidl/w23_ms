@@ -26,15 +26,16 @@ library("cluster")
 
 data(wine)
 wine$Type = as.factor(wine$Type)
-wine
+
 ```
 # Task 1
+Applying k-means on scaled (standardized) variables makes sure to avoid distorted results. This can be the case wen te means or variances differ a lot between each variables. Non scaled variables cannot meaningfully be compared by distance. It is like stating 10km is less than 11m because 10<11.
 ```{r}
 df1 = select(wine, c("Type", "Magnesium", "Total Phenols"))
 ggplot(wine, aes(x=Magnesium, y=`Total Phenols`, colour=Type)) +
   geom_point()
-
 k = 3
+
 res.km1 = kmeans(select(df1, -Type), k, nstart=10)
 df1["y_pred"] = as.factor(res.km1$cluster)
 
@@ -43,30 +44,55 @@ ggplot(df1, aes(x=Magnesium, y=`Total Phenols`, colour=Type)) +
 
 table(df1$Type, df1$y_pred)
 matchClasses(table(df1$Type, df1$y_pred))
+
+
+df1 = select(wine, c("Type", "Magnesium", "Total Phenols"))
+df1[,-c(1)] = scale(df1[,-c(1)])
+
+res.km1.scaled = kmeans(select(df1, -Type), k, nstart=10)
+df1["y_pred_scaled"] = as.factor(res.km1.scaled$cluster)
+
+ggplot(df1, aes(x=Magnesium, y=`Total Phenols`, colour=Type)) +
+  geom_point(aes(shape=y_pred_scaled))
+
+table(df1$Type, df1$y_pred_scaled)
+matchClasses(table(df1$Type, df1$y_pred_scaled))
 ```
 
 # Task 2
+
 ```{r}
 wine[,-c(1)] = scale(wine[,-c(1)])
 df2 = wine
 
 k = 3
-res.km2 = kmeans(select(df2, -Type), center=k)
+df2.km2 = kmeans(select(df2, -Type), center=k)
 
-df2["y_pred"] = as.factor(res.km2$cluster)
+df2["y_pred"] = as.factor(df2.km2$cluster)
 
 ggplot(df2, aes(x=Magnesium, y=`Total Phenols`, colour=Type)) +
   geom_point(aes(shape=y_pred))
 
 table(df2$Type, df2$y_pred)
 matchClasses(table(df2$Type, df2$y_pred))
+```
+The variables with the highest sum of pairwise distances between each types cluster center are the ones that contain most information for clustering. In our case it is Flavanoids.
+```{r}
+sum_of_pairwise_distances = function(vec) {
+  sum(c(abs(vec[1]-vec[2]),abs(vec[1]-vec[3]),abs(vec[2]-vec[3])))
+}
 
+df2.km.centers = data.frame(df2.km2$centers)
+sum_pairwise_distance = data.frame("sum_pairwise_dist" = t(apply(df2.km.centers, 2, FUN=sum_of_pairwise_distances)))
+most_information = colnames(sum_pairwise_distance)[apply(sum_pairwise_distance, 1, which.max)]
+cat("Most information provided by variable: ", most_information)
+plot(x=wine$Type, y=wine$Flavanoids)
 ```
 
 # Task 3
+Hierarchical clustering with metods single and centroid result in the same pair matching rate. Method complete is worse than these two methods.
 ```{r}
 df3 = wine
-df3
 df3.dist = dist(select(df3, -Type))
 df3.hc.complete = hclust(df3.dist, method="complete")
 df3.hc.single = hclust(df3.dist, method="single")
@@ -88,7 +114,7 @@ matchClasses(table(df3$Type, df3$y_pred_centroid))
 ```
 
 # Task 4
-Optimal model is VVE with number of clusters 3.
+Optimal model is VVE with num. of clusters 3.
 ```{r}
 df4 = wine
 df4.mc = Mclust(select(df4, -Type), 1:10)
@@ -98,15 +124,12 @@ fviz_mclust(df4.mc, "classification", geom = "point")
 
 df4["y_pred"] = as.factor(df4.mc$classification)
 
-ggplot(df4, aes(x=Magnesium, y=`Total Phenols`, colour=Type)) +
-  geom_point(aes(shape=y_pred))
-
 table(df4$Type, df4$y_pred)
 matchClasses(table(df4$Type, df4$y_pred))
 ```
 
 # Task 5
-Observations of type 1 and 3 are predicted with a higher confidence, because their coefficients have a higher difference on average.
+The ternary dendogram provides an overview of the cluster memberships for each observation. The color corresponds to the observations actual type.  Observations of type 1 and 3 are predicted with a higher confidence than those of type 2, because their coefficients have a higher variance in the dendogram.
 ```{r}
 df5 = wine
 df5.cm = cmeans(df5, centers=3)
@@ -118,25 +141,28 @@ ternaryDiag(df5.cm$membership, col=df5$Type)
 ```
 
 # Task 7
-K-means with both k=3 and k=4 reach a silhouette width of 0.2.
+2 or 3 clusters have the lowest average silhouette width and therefore fit the requirements for optimal num. of cluster.
 ```{r}
 df7 = wine
 df7.dist = dist(select(df7, -Type))
-df7.km.k2 = unlist(kmeans(select(df7, -Type), center=2)$cluster)
-df7.km.k3 = unlist(kmeans(select(df7, -Type), center=3)$cluster)
-df7.km.k4 = unlist(kmeans(select(df7, -Type), center=4)$cluster)
-df7.km.k5 = unlist(kmeans(select(df7, -Type), center=5)$cluster)
 
-plot(silhouette(df7.km.k2, df7.dist))
-plot(silhouette(df7.km.k3, df7.dist))
-plot(silhouette(df7.km.k4, df7.dist))
-plot(silhouette(df7.km.k5, df7.dist))
+for(k in 2:6) {
+  km = unlist(kmeans(select(df7, -Type), center=k, nstart=10)$cluster)
+  plot(silhouette(km, df7.dist))
+}
 ```
 
 # Task 8
+The optimal num. of clusters is dependent on the correct classification - model complexity tradeoff. Lower k corresponds to lower complexity. Therefore 3 clusters seem to be the optimal fit.
 ```{r}
 df8 = wine
-clusGap(select(df8, -Type), FUN=kmeans,K.max=10)
+df8.cg = clusGap(select(df8, -Type), FUN=kmeans,K.max=10)
+plot(df8.cg)
 
-
+```
+# Task 9
+```{r}
+df9 = wine
+df9.cg <- clusGap(select(df9, -Type), FUNcluster = cmeans, K.max = 10)
+plot(df9.cg)
 ```
