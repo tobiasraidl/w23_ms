@@ -1,0 +1,120 @@
+---
+title: "Exercise 3"
+author: "Tobias Raidl, 11717659"
+date: "2023-10-30"
+output:
+  pdf_document:
+    toc: true
+header-includes:
+  \usepackage{fvextra}
+  \DefineVerbatimEnvironment{Highlighting}{Verbatim}{breaklines,commandchars=\\\{\}}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, tidy=TRUE)
+```
+
+# 1
+## a
+```{r}
+df = read.csv("schooldata.csv")
+train = df[1:55,]
+test = df[56:70,]
+
+model = lm(cbind(reading, mathematics, selfesteem)~education+occupation+visit+counseling+teacher, data=train)
+```
+
+## b
+Having the p-values for each response variable seperatly does not help us in identifying the most significant variables for our multivariate case. lm() does not fit a multivariate model.
+```{r}
+summary(model)
+```
+
+## c
+With manova() we receive a multivariate model. The p values are expressive in comparison to the linear regression model before. Say critical vale $\alpha=0.05$, the variables education, occupation and visit are significant.
+```{r}
+multivariate_model = manova(cbind(reading, mathematics, selfesteem)~education+occupation+visit+counseling+teacher, data=train)
+summary(multivariate_model)
+```
+
+# 2
+The p value is too high to be significant in the case of $alpha=0.05$. Therefore the model is fine without the two variables counseling and teacher.
+```{r}
+reduced_multivariate_model = manova(cbind(reading, mathematics, selfesteem)~education+occupation+visit, data=train)
+anova(multivariate_model, reduced_multivariate_model)
+```
+
+#3
+## a 
+This command conducts k-fold cross validation. The default k is 5, so the dataset is split into 5 folds. Each of these folds will be used as test set once. The error is averaged. This process is repeated 100 times, as we set R=100
+```{r}
+library(cvTools)
+
+multivariate_model.cv = cvFit(multivariate_model,data=train,y=cbind(train$reading,train$mathematics,train$selfesteem),R=100)
+
+plot(multivariate_model.cv)
+```
+
+## b
+The reduced multivariate model seems to perform slightly better. Also it is less complex due to a lower number of variables.
+```{r}
+reduced_multivariate_model.cv = cvFit(reduced_multivariate_model,data=train,y=cbind(train$reading,train$mathematics,train$selfesteem),R=100)
+
+data = data.frame(A = unlist(multivariate_model.cv$reps),
+                  B = unlist(reduced_multivariate_model.cv$reps))
+boxplot(data)
+```
+
+# 4
+Here I plot the residuals to compare the predicted to the ground truth values for each response variable. I conclude that selfesteem is the variable that is most accuratlly predicted using this reduced multivariate model. All in all though, all three response variables are predicted "well".
+```{r}
+library(dplyr)
+predicted = data.frame(predict(reduced_multivariate_model, select(test, education, occupation, visit)))
+gt = select(test, reading, mathematics, selfesteem)
+data = data.frame(cbind(predicted, gt))
+data = data %>%
+  rename(
+       reading.pred=reading.1,
+       mathematics.pred=mathematics.1,
+       selfesteem.pred=selfesteem.1)
+
+library(ggplot2)
+ggplot(data, aes(x=1:nrow(data), y=reading-reading.pred)) +
+  geom_point() +
+  geom_segment(aes(xend=1:nrow(data)), yend=0) +
+  expand_limits(y=0) +
+  geom_hline(yintercept=0) +
+  ggtitle("Residuals for reading variable") +
+  xlab("observation") + ylab("residuals")
+
+ggplot(data, aes(x=reading, y=reading.pred)) +
+  geom_point() +
+  ggtitle("Ground truth vs. prediction for reading") +
+  geom_abline(intercept=0, slope=1)
+
+ggplot(data, aes(x=1:nrow(data), y=mathematics-mathematics.pred)) +
+  geom_point() +
+  geom_segment(aes(xend=1:nrow(data)), yend=0) +
+  expand_limits(y=0) +
+  geom_hline(yintercept=0) +
+  ggtitle("Residuals for mathematics variable") +
+  xlab("observation") + ylab("residuals")
+
+ggplot(data, aes(x=mathematics, y=mathematics.pred)) +
+  geom_point() +
+  ggtitle("Ground truth vs. prediction for mathematics") +
+  geom_abline(intercept=0, slope=1)
+
+ggplot(data, aes(x=1:nrow(data), y=selfesteem-selfesteem.pred)) +
+  geom_point() +
+  geom_segment(aes(xend=1:nrow(data)), yend=0) +
+  expand_limits(y=0) +
+  geom_hline(yintercept=0) +
+  ggtitle("Residuals for selfesteem variable") +
+  xlab("observation") + ylab("residual")
+
+ggplot(data, aes(x=selfesteem, y=selfesteem.pred)) +
+  geom_point() +
+  ggtitle("Ground truth vs. prediction for selfesteem") +
+  geom_abline(intercept=0, slope=1)
+```
