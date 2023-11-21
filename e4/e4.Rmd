@@ -1,0 +1,107 @@
+---
+title: "Exercise 4"
+author: "Tobias Raidl, 11717659"
+date: "2023-10-30"
+output:
+  pdf_document:
+    toc: true
+header-includes:
+  \usepackage{fvextra}
+  \DefineVerbatimEnvironment{Highlighting}{Verbatim}{breaklines,commandchars=\\\{\}}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, tidy=TRUE)
+```
+
+Setup dataset
+```{r}
+library(UsingR)
+library(dplyr)
+
+df = select(fat, -c(case, body.fat.siri, ffweight, density))
+X = select(df, -c(body.fat))
+y = df$body.fat
+```
+
+# 1
+Investigate if there are leverage points by using ...
+
+## a
+... classical diagnostic based on the diagonal elements of the hat matrix
+```{r}
+Xm = data.matrix(X)
+H = Xm %*% solve(t(Xm) %*% Xm) %*% t(Xm)
+H_diag = diag(H)
+plot(H_diag, pch=4, col="blue")
+abline(h=quantile(H_diag, 0.975), lty="dashed", col="red")
+```
+
+## b
+... robust diagnostics based on robust Mahalanobis distances. Use the MCD estimator (covMcd() from the package robustbase) for this purpose.
+```{r}
+library(robustbase)
+leverage_robust = covMcd(Xm)
+plot(log(leverage_robust$mah), pch=4, col="blue")
+abline(h=quantile(log(leverage_robust$mah), 0.975), lty="dashed", col="red")
+leverage_points = which(leverage_robust$mah > quantile(leverage_robust$mah, 0.975))
+print(paste("leverage points:", paste(leverage_points, collapse=", ")))
+```
+
+What do you conclude?
+The classical non robust method results in 6 observations having a p-value greater than 0.975. The robust MCD gets 7 observations with a greater p-value. Therefore the difference seems to be negligible.
+
+# 2
+Now split the observations randomly into training and test data, e.g. in a proportion 3:1. Then apply linear regression to the training set, with
+## a
+ the least-squares estimator (lm()) and the robust MM-estimator (lmrob() from library(robustbase)). Interpret the results of summary() and plot().
+```{r}
+set.seed(11717659)
+sample <- sample(c(TRUE, FALSE), nrow(df), replace=TRUE, prob=c(3/4, 1/4))
+train  <- df[sample, ]
+test   <- df[!sample, ]
+
+library(robustbase)
+
+model = lm(body.fat~., train)
+#summary(model)
+plot(model)
+
+model_rob = lmrob(body.fat~., train)
+#summary(model_rob)
+plot(model_rob)
+```
+
+Is robustness recommendable?
+I dont think so because the non robust estimator, detects nearly as many outliers as the non robust estimator.
+
+## b
+Compute the Cook distances from the least-squares solution.
+```{r}
+cook_dist = cooks.distance(model)
+summary(cook_dist)
+summary(model_rob$weights)
+plot(cook_dist)
+plot(model_rob$rweights)
+```
+
+
+## c
+Use the models to predict the response of the test set. Compare the classical and robust predictions graphically and numerically using an appropriate measure of prediction accuracy.
+```{r}
+library(ggplot2)
+gt = test$body.fat
+model_pred = predict(model, select(test, -body.fat))
+model_rob_pred = predict(model_rob, select(test, -body.fat))
+
+res = data.frame(gt, model_pred, model_rob_pred)
+
+ggplot(res) + 
+  geom_point(aes(x=gt, y=model_pred), color="orange") +
+  geom_abline(intercept=0, slope=1)
+
+ggplot(res) + 
+  geom_point(aes(x=gt, y=model_rob_pred), color="orange") +
+  geom_abline(intercept=0, slope=1)
+  
+```
