@@ -1,0 +1,117 @@
+---
+title: "Exercise 5"
+author: "Tobias Raidl, 11717659"
+date: "2023-11-22"
+output:
+  pdf_document:
+    toc: true
+header-includes:
+  \usepackage{fvextra}
+  \DefineVerbatimEnvironment{Highlighting}{Verbatim}{breaklines,commandchars=\\\{\}}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, tidy=TRUE)
+```
+
+```{r}
+library(pgmm)
+data(wine)
+```
+
+# 1
+## a
+```{r}
+library(dplyr)
+wine.scaled = scale(select(wine, -Type))
+comps = princomp(wine.scaled, cor=TRUE)
+plot(comps)
+summary(comps)
+```
+## b
+```{r}
+biplot(comps, choices=1:2)
+
+```
+
+## c
+```{r}
+plot(comps$scores, col=wine$Type)
+```
+
+## d
+```{r}
+library(robustbase)
+wine.t1 = wine[wine$Type == 1,]
+wine.t3 = wine[wine$Type == 3,]
+wine.custom = rbind(wine.t1, wine.t3[1:10,])
+wine.custom.X = select(wine.custom, -Type)
+mcd = covMcd(wine.custom.X)
+
+plot(mcd$mah, col=wine.custom$Type)
+```
+
+## e
+```{r}
+comps2 = princomp(select(wine, -Type), cor=TRUE, covmat=covMcd(select(wine, -Type)))
+summary(comps2)
+plot(comps2)
+biplot(comps2, choices=1:2)
+plot(comps2$scores, col=wine$Type)
+```
+
+# 2
+## a
+```{r}
+library(pixmap)
+x = read.pnm("xray.pnm")
+#plot(x)
+#str(x)
+
+# compression level (max: 746)
+num_components = 20
+
+# compressed
+red.pca = prcomp(x@red, center=F)
+green.pca = prcomp(x@green, center=F)
+blue.pca = prcomp(x@blue, center=F)
+
+str(red.pca$x[, 1:num_components])
+str(t(red.pca$rotation[, 1:num_components]))
+
+red.recon = red.pca$x[, 1:num_components] %*% t(red.pca$rotation[, 1:num_components])
+green.recon = green.pca$x[, 1:num_components] %*% t(green.pca$rotatio[, 1:num_components])
+blue.recon = blue.pca$x[, 1:num_components] %*% t(blue.pca$rotation[, 1:num_components])
+
+compressed = pixmapRGB(c(red.recon, green.recon, blue.recon), nrow=1023, ncol=746)
+plot(compressed)
+```
+
+## b
+~20
+
+## c
+I use peak signal to noise ratio as metric of information loss. Typical values for the PSNR in lossy image and video compression are between 30 and 50 dB, where higher is better. Values over 40 dB are normally considered very good and those below 20 dB are normally unacceptable.
+```{r}
+get_mse = function(gt, compr) {
+  height = nrow(x@red)
+  width = ncol(x@red)
+  channels = length(x@channels)
+  return((1/(width*height*channels)) * sum((gt@red-compr@red)^2 + (gt@green-compr@green)^2 + (gt@blue-compr@blue)^2))
+}
+
+print(paste("mse:", get_mse(x, compressed)))
+
+get_psnr = function(gt, compr) {
+  max_int = 1
+  mse = get_mse(gt, compressed)
+  return(10*log10(max_int^2/mse))
+}
+
+print(paste("psnr:", get_psnr(x, compressed)))
+```
+
+## d
+```{r}
+
+```

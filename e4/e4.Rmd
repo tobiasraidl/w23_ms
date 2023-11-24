@@ -34,11 +34,15 @@ Xm = data.matrix(X)
 H = Xm %*% solve(t(Xm) %*% Xm) %*% t(Xm)
 H_diag = diag(H)
 plot(H_diag, pch=4, col="blue")
-abline(h=quantile(H_diag, 0.975), lty="dashed", col="red")
+p=ncol(X)
+n=nrow(X)
+abline(h=2*(p/n), lty="dashed", col="red")
 ```
 
 ## b
 ... robust diagnostics based on robust Mahalanobis distances. Use the MCD estimator (covMcd() from the package robustbase) for this purpose.
+
+Mahalanobis distance between each observation and the by MCD robustly estimated center.
 ```{r}
 library(robustbase)
 leverage_robust = covMcd(Xm)
@@ -64,16 +68,16 @@ test   <- df[!sample, ]
 library(robustbase)
 
 model = lm(body.fat~., train)
-#summary(model)
+summary(model)
 plot(model)
 
 model_rob = lmrob(body.fat~., train)
-#summary(model_rob)
+summary(model_rob)
 plot(model_rob)
 ```
 
 Is robustness recommendable?
-I dont think so because the non robust estimator, detects nearly as many outliers as the non robust estimator.
+I dont think so because the non robust estimator, detects nearly as many leverage points as the non robust estimator.
 
 ## b
 Compute the Cook distances from the least-squares solution.
@@ -82,7 +86,7 @@ cook_dist = cooks.distance(model)
 summary(cook_dist)
 summary(model_rob$weights)
 plot(cook_dist)
-plot(model_rob$rweights)
+plot(cook_dist, model_rob$rweights)
 ```
 
 
@@ -93,6 +97,9 @@ library(ggplot2)
 gt = test$body.fat
 model_pred = predict(model, select(test, -body.fat))
 model_rob_pred = predict(model_rob, select(test, -body.fat))
+
+mad(model_pred-gt)
+mad(model_rob_pred-gt)
 
 res = data.frame(gt, model_pred, model_rob_pred)
 
