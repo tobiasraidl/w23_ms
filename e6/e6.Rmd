@@ -1,0 +1,55 @@
+---
+title: "Exercise 6"
+author: "Tobias Raidl, 11717659"
+date: "2023-11-30"
+output:
+  pdf_document:
+    toc: true
+header-includes:
+  \usepackage{fvextra}
+  \DefineVerbatimEnvironment{Highlighting}{Verbatim}{breaklines,commandchars=\\\{\}}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, tidy=TRUE)
+```
+
+# 1 Principal Component Analysis
+```{r}
+load("darwinM.RData")
+df = darwinM
+```
+
+## a
+Perform classical PCA on the whole data (except “class”), and try to explain
+based on the biplot the main differences between the patient and the healthy
+group
+```{r}
+library(ggplot2)
+library(ggfortify)
+set.seed(11717659)
+pca = princomp(~.-class, df, cor=TRUE)
+autoplot(pca, data=df, colour="class", loadings = TRUE, loadings.colour = 'red',
+         loadings.label = TRUE, loadings.label.size = 3)
+```
+The pressure mean is higher for healthy people, while the pressure variance is higher patients. Both air and paper time are higher for patients while mean speed in air and on paper both tend to be higher for healthy people.
+
+## b
+For the following tasks, use the function PcaHubert() from the package rrcov,
+which performs a robust PCA.
+Apply PCA separately on the healthy and on the patient group, and show the
+PCA diagnostics plots with orthogonal and score distances. What could be the
+reason for the clear outlyingness of some observations?
+```{r}
+library(rrcov)
+library(dplyr)
+pca_hubert = PcaHubert(~.-class, df, cor=TRUE)
+df_h = select(df[df$class=="H", ], -class)
+df_p = select(df[df$class=="P", ], -class)
+
+pca_hubert_h = PcaHubert(~., df_h, cor=TRUE)
+pca_hubert_p = PcaHubert(~., df_p, cor=TRUE)
+
+autoplot(pca_hubert_h, data=df_h, colour="class", loadings = TRUE, loadings.colour = 'red',
+         loadings.label = TRUE, loadings.label.size = 3)
+```
