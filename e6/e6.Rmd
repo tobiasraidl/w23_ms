@@ -23,7 +23,7 @@ df = darwinM
 ## a
 Perform classical PCA on the whole data (except “class”), and try to explain
 based on the biplot the main differences between the patient and the healthy
-group
+group.
 ```{r}
 library(ggplot2)
 library(ggfortify)
@@ -43,13 +43,65 @@ reason for the clear outlyingness of some observations?
 ```{r}
 library(rrcov)
 library(dplyr)
-pca_hubert = PcaHubert(~.-class, df, cor=TRUE)
+pca_hubert = PcaHubert(~.-class, df, k=2, cor=TRUE)
 df_h = select(df[df$class=="H", ], -class)
 df_p = select(df[df$class=="P", ], -class)
 
-pca_hubert_h = PcaHubert(~., df_h, cor=TRUE)
-pca_hubert_p = PcaHubert(~., df_p, cor=TRUE)
+pca_hubert_h = PcaHubert(~., df_h, k=2, scale=TRUE)
+pca_hubert_p = PcaHubert(~., df_p, k=2, scale=TRUE)
 
-autoplot(pca_hubert_h, data=df_h, colour="class", loadings = TRUE, loadings.colour = 'red',
+par(mfrow = c(1, 2))
+plot(pca_hubert_h, main="healthy")
+plot(pca_hubert_p, main="patients")
+```
+
+## c
+Present both biplots and try to identify main differences in the data structure of
+both groups.
+```{r}
+biplot(pca_hubert_h, xlim=c(-0.4, 0.3), ylim=c(-0.2,0.05))
+biplot(pca_hubert_p, xlim=c(-0.4, 0.3), ylim=c(-0.2,0.05))
+```
+For the patient group the loadings point in directions within circa 180 degrees, whereas the loadings from the healthy group have a higher variance in direction.
+
+Ask Prof. Filzmoser: Cannot see much here. Any better way for visualization?
+
+## d
+Take the PCA result for the healthy group, and project the patient data into the
+plane of the first 2 healthy group PCs. This allows for a better comparison of
+the main differences in the data structure of the two data sets. What are these
+main differences?
+```{r}
+biplot(pca_hubert_h)
+points(pca_hubert_p$scores, col="green")
+```
+Sadly I cannot she anything in this plot.
+
+Ask Prof. Filzmoser: Any better visualization method?
+
+# 2
+## a
+Compute a factor analysis model for the complete data (without “class”) using
+an appropriate number k of factors.
+```{r}
+fa <- factanal(scale(select(df, -class)),factors=8, scores="regression")
+```
+
+## b
+What is the maximum value of k you could consider?
+k=8 is the largest k to consider. (formula in script)
+
+## c
+What are the differences to PCA (loadings, scores)? What are the uniquenesses?
+The uniquenesses are the error term $e$. There is one uniqueness value per variable. The higher it is the less variance of it is explained by the factors. 
+ 
+ ## d
+Show loadings and scores in a biplot and compare with the PCA biplot. How
+can you interpret the first two factors?
+The first factor focuses on all the horizontally displayed loading vectors like paper_time and pressure_mean. The second one on the mean_acc_on_paper and mean_jerk_on_paper. Variables whose loading vectors are rather short are hardly covered by the first 2 factors (max_y_extension, max_x_extension). They seem to be less relevant than others.
+```{r}
+autoplot(fa, data=df, colour="class", loadings = TRUE, loadings.colour = 'red',
+         loadings.label = TRUE, loadings.label.size = 3)
+autoplot(pca, data=df, colour="class", loadings = TRUE, loadings.colour = 'red',
          loadings.label = TRUE, loadings.label.size = 3)
 ```

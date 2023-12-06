@@ -26,7 +26,7 @@ library(dplyr)
 wine.scaled = scale(select(wine, -Type))
 comps = princomp(wine.scaled, cor=TRUE)
 plot(comps)
-summary(comps)
+#summary(comps)
 ```
 ## b
 ```{r}
@@ -48,13 +48,13 @@ wine.custom = rbind(wine.t1, wine.t3[1:10,])
 wine.custom.X = select(wine.custom, -Type)
 mcd = covMcd(wine.custom.X)
 
-plot(mcd$mah, col=wine.custom$Type)
+plot(sqrt(mcd$mah), col=wine.custom$Type)
 ```
 
 ## e
 ```{r}
 comps2 = princomp(select(wine, -Type), cor=TRUE, covmat=covMcd(select(wine, -Type)))
-summary(comps2)
+#summary(comps2)
 plot(comps2)
 biplot(comps2, choices=1:2)
 plot(comps2$scores, col=wine$Type)
@@ -112,6 +112,15 @@ print(paste("psnr:", get_psnr(x, compressed)))
 ```
 
 ## d
+I calculate the compression ratio by dividing the sizes of all three rotation matrices (one per color) plus the amount of principal components times their size for each color (x3) by the original image size *3. You can also get rid of the times 3.
 ```{r}
+res = c()
+for(k in 1:746) {
+  original = 1023*746*3
+  compressed =(746^2 + k*1023)*3
+  res = append(res, compressed/original)
+}
 
+plot(res, type="l", lty=1)
+abline(h=1, col="red")
 ```
