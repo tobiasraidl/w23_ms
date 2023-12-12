@@ -1,0 +1,107 @@
+---
+title: "Exercise 6"
+author: "Tobias Raidl, 11717659"
+date: "2023-11-30"
+output:
+  pdf_document:
+    toc: true
+header-includes:
+  \usepackage{fvextra}
+  \DefineVerbatimEnvironment{Highlighting}{Verbatim}{breaklines,commandchars=\\\{\}}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, tidy=TRUE)
+```
+
+```{r}
+cars = read.csv("cardata.csv")
+cars = na.omit(cars)
+df = cars[, -c(1:9,15,16,18)]
+
+
+```
+
+## 1
+Use the function pfa() from the package StatDA for principal factor analysis,
+with the argument scores="regression" to also obtain scores. Inspect the
+biplot and try to interpret the factors.
+```{r}
+library(StatDA)
+library(ggfortify)
+df_scaled = scale(df)
+pfa = pfa(df_scaled, factors=2, scores="regression")
+autoplot(pfa, data=df_scaled, loadings = TRUE, loadings.colour = 'red',
+         loadings.label = TRUE, loadings.label.size = 3)
+pfa
+```
+The first factor covers variables like horsepower, size, weight, highway.mpg and city.mpg (horizontal), and the second factor covers variables such as peak.rpm, height and compression rate. Wheel base for example is similarly covered by both factors.
+
+## 2
+ Estimate robustly mean and covariance using the MCD estimator. Do the same
+as above, but provide the results from the MCD to the covmat argument to
+obtain a robust factor analysis solution. Note that scaling should then also be
+done robustly. Does the interpretation of the factors change?
+```{r}
+library(robustbase)
+library(DescTools)
+
+covmat = covMcd(df)$cov
+df_robscaled = RobScale(df)
+set.seed(69)
+robust_pfa = pfa(df_robscaled, factors=2, covmat=covmat, scores="regression")
+autoplot(robust_pfa, data=df_robscaled, loadings = TRUE, loadings.colour = 'red',
+         loadings.label = TRUE, loadings.label.size = 3)
+robust_pfa
+```
+The explained variance by the first 2 factors is now ~5% higher than in the non-robust approach.
+
+## 3
+Look at the scores from robust factor analysis and try to identify a variable from
+the data set which is explaining outliers in the scores. So, essentially, plot the
+scores, with color according to other (categorical) variables). Do the same for
+the non-robust scores. Does the same variable also lead to an explanation of the
+outlyingness?
+```{r}
+library(ggplot2)
+
+facvars = c(1:9,15,16,18)
+for(i in facvars) {
+  print(
+    ggplot(robust_pfa$scores, aes(x=Factor1, y=Factor2, col=factor(cars[,i]))) +
+      geom_point() +
+      ggtitle(paste("robust", names(cars)[i]))
+  )
+    print(
+    ggplot(pfa$scores, aes(x=Factor1, y=Factor2, col=factor(cars[,i]))) +
+      geom_point() +
+      ggtitle(paste("non-robust", names(cars)[i]))
+  )
+}
+
+```
+The one outlier on the top left is the only one where the variable _body.style_ is "convertible". Also The _num.of.cylinders_ is eight for this observation only. In the non- robust method this is not detectable.
+
+## 4
+With print() applied to the factor analysis output object you can see the variance proportions of the factors. How are these values computed?
+```{r}
+print(robust_pfa)
+```
+TODO: Answer this question
+
+## 5
+ Compute the robust principal components based on the MCD estimator, and
+focus on the first two components. Rotate the components according to the
+varimax criterion (which is also the default for pfa()). This can be done by
+using the function varimax() from the package GPArotation.
+```{r}
+  
+```
+
+## 6
+Compute also the scores to the rotated principal components, and present loadings and scores in a biplot. What are major differences to the robust factor
+analysis solution?
+```{r}
+
+```
+
