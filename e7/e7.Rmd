@@ -1,7 +1,7 @@
 ---
-title: "Exercise 6"
+title: "Exercise 7"
 author: "Tobias Raidl, 11717659"
-date: "2023-11-30"
+date: "2023-12-12"
 output:
   pdf_document:
     toc: true
@@ -87,7 +87,6 @@ With print() applied to the factor analysis output object you can see the varian
 ```{r}
 print(robust_pfa)
 ```
-TODO: Answer this question
 
 ## 5
  Compute the robust principal components based on the MCD estimator, and
@@ -95,13 +94,18 @@ focus on the first two components. Rotate the components according to the
 varimax criterion (which is also the default for pfa()). This can be done by
 using the function varimax() from the package GPArotation.
 ```{r}
-  
+library(GPArotation)
+robust_pca = prcomp(~., data=data.frame(df_robscaled), covmat=covmat)
+summary(robust_pca)
 ```
 
 ## 6
-Compute also the scores to the rotated principal components, and present loadings and scores in a biplot. What are major differences to the robust factor
-analysis solution?
+Compute also the scores to the rotated principal components, and present loadings and scores in a biplot. What are major differences to the robust factor analysis solution?
 ```{r}
-
+varimax_loadings = varimax(robust_pca$rotation)$loadings
+varimax_loadings
+scores = df_robscaled %*% t(solve(varimax_loadings))
+autoplot(robust_pca, data=df_robscaled, loadings = TRUE, loadings.colour = 'red',
+         loadings.label = TRUE, loadings.label.size = 3)
 ```
-
+Here compression ratio makes up most of the first component.

@@ -59,8 +59,8 @@ plot(pca_hubert_p, main="patients")
 Present both biplots and try to identify main differences in the data structure of
 both groups.
 ```{r}
-biplot(pca_hubert_h, xlim=c(-0.4, 0.3), ylim=c(-0.2,0.05))
-biplot(pca_hubert_p, xlim=c(-0.4, 0.3), ylim=c(-0.2,0.05))
+biplot(pca_hubert_h, cex=0.7)
+biplot(pca_hubert_p, cex=0.7)
 ```
 For the patient group the loadings point in directions within circa 180 degrees, whereas the loadings from the healthy group have a higher variance in direction.
 
@@ -72,8 +72,8 @@ plane of the first 2 healthy group PCs. This allows for a better comparison of
 the main differences in the data structure of the two data sets. What are these
 main differences?
 ```{r}
-biplot(pca_hubert_h)
-points(pca_hubert_p$scores, col="green")
+biplot(pca_hubert_h, cex=0.7)
+points(pca_hubert_p$scores, col="green", cex=0.7)
 ```
 Sadly I cannot she anything in this plot.
 
@@ -84,7 +84,8 @@ Ask Prof. Filzmoser: Any better visualization method?
 Compute a factor analysis model for the complete data (without “class”) using
 an appropriate number k of factors.
 ```{r}
-fa <- factanal(scale(select(df, -class)),factors=8, scores="regression")
+fa <- factanal(scale(select(df, -class)),factors=5, scores="regression")
+fa
 ```
 
 ## b
@@ -93,7 +94,7 @@ k=8 is the largest k to consider. (formula in script)
 
 ## c
 What are the differences to PCA (loadings, scores)? What are the uniquenesses?
-The uniquenesses are the error term $e$. There is one uniqueness value per variable. The higher it is the less variance of it is explained by the factors. 
+Uniquenesses are the variances of the error terms. There is one uniqueness value per variable. The higher it is the less variance of it is explained by the factors.
  
  ## d
 Show loadings and scores in a biplot and compare with the PCA biplot. How
