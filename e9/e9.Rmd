@@ -1,7 +1,7 @@
 ---
 title: "Exercise 9"
 author: "Tobias Raidl, 11717659"
-date: "2023-12-30"
+date: "2023-01-01"
 output:
   pdf_document:
     toc: true
@@ -47,7 +47,7 @@ get_missclass_rate = function(gt, pred) {
   tp = conf_mat[1,1]
   tn = conf_mat[2,2]
   fp = conf_mat[1,2]
-  fn = conf_mat[2.1]
+  fn = conf_mat[2,1]
   misclass_rate = (fp + fn) / sum(conf_mat)
   return(misclass_rate)
 }
@@ -123,21 +123,43 @@ ggplot(data=grid, aes(x=alcohol, y=fixed.acidity, col=rob_qda_pred)) +
 
 ### 2.
 ```{r}
-train100 = train[sample(nrow(train), 100), ]
-test100 = test[sample(nrow(test), 100), ]
-test100_X = dplyr::select(test100, -c(class, pred, qda_pred, rob_lda_pred, rob_qda_pred))
+iters = 5
+lda_misclass_rates = vector("numeric", iters)
+qda_misclass_rates = vector("numeric", iters)
+rob_lda_misclass_rates = vector("numeric", iters)
+rob_qda_misclass_rates = vector("numeric", iters)
 
-lda = lda(class~., data=train100)
-lda_posterior = predict(lda, newdata=test100)$posterior
-print(paste("misclassification_rate", get_missclass_rate(test$class, test$pred)))
+for (i in 1:iters) {
+  df = dplyr::select(wine, -quality)
+  set.seed(i)
+  sample <- sample(c(TRUE, FALSE), nrow(df), replace=TRUE, prob=c(2/3,1/3))
+  train  <- df[sample, ]
+  test   <- df[!sample, ]
 
-qda = qda(class~., data=train100)
-qda_posterior = predict(qda, newdata=test100)$posterior
+  lda = lda(class~., data=train)
+  lda_pred = predict(lda, newdata=test)$class
+  lda_misclass_rates[i] = get_missclass_rate(test$class, lda_pred)
+  
+  qda = qda(class~., data=train)
+  qda_pred = predict(qda, newdata=test)$class
+  qda_misclass_rates[i] = get_missclass_rate(test$class, qda_pred)
+  
+  rob_lda = Linda(class~., data=train)
+  rob_lda_pred = predict(rob_lda, dplyr::select(test, -class))@classification
+  rob_lda_misclass_rates[i] = get_missclass_rate(test$class, rob_lda_pred)
+  
+  rob_qda = QdaCov(class~., data=train)
+  rob_qda_pred = predict(rob_qda, dplyr::select(test, -class))@classification
+  rob_qda_misclass_rates[i] = get_missclass_rate(test$class, rob_qda_pred)
+}
 
-rob_lda = Linda(class~., data=train100)
-test100$rob_lda_pred = predict(rob_lda, test100_X)@classification
+library(reshape2)
 
-rob_qda = QdaCov(class~., data=train100)
-test100$rob_qda_pred = predict(rob_qda, test100_X)@classification
+df_misclass_rates = data.frame(id=1:iters, lda=lda_misclass_rates, qda=qda_misclass_rates, rob_lda=rob_lda_misclass_rates, rob_qda=rob_qda_misclass_rates)
+
+data_mod = melt(df_misclass_rates, id.vars="id", measure.vars=c("lda", "qda", "rob_lda", "rob_qda"))
+
+ggplot(data_mod) + 
+  geom_boxplot(aes(x=id, y=value, color=variable))
 ```
 
