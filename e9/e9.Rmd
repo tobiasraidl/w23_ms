@@ -1,0 +1,143 @@
+---
+title: "Exercise 9"
+author: "Tobias Raidl, 11717659"
+date: "2023-12-30"
+output:
+  pdf_document:
+    toc: true
+header-includes:
+  \usepackage{fvextra}
+  \DefineVerbatimEnvironment{Highlighting}{Verbatim}{breaklines,commandchars=\\\{\}}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, tidy=TRUE)
+```
+
+## Setup
+```{r}
+library(dplyr)
+library(MASS)
+wine <- read.csv("winequality-white.csv",dec=".",sep=";")
+
+y = factor(c(), levels=c("Low", "High"))
+
+wine$class[wine$quality %in% c(3,4,5)] = "Low"
+wine$class[wine$quality %in% c(6,7,8,9)] = "High"
+df = dplyr::select(wine, -quality)
+sample <- sample(c(TRUE, FALSE), nrow(df), replace=TRUE, prob=c(2/3,1/3))
+train  <- df[sample, ]
+test   <- df[!sample, ]
+```
+
+### 1.
+```{r}
+library(ggplot2)
+ggplot(data=df, aes(x=alcohol, y=fixed.acidity, col=class)) +
+  geom_point()
+```
+
+#### a)
+```{r}
+lda = lda(class~alcohol+fixed.acidity, data=train)
+test$pred = predict(lda, newdata=test)$class
+
+get_missclass_rate = function(gt, pred) {
+  conf_mat = table(gt, pred, deparse.level=2, dnn=c("gt", "pred"))
+  tp = conf_mat[1,1]
+  tn = conf_mat[2,2]
+  fp = conf_mat[1,2]
+  fn = conf_mat[2.1]
+  misclass_rate = (fp + fn) / sum(conf_mat)
+  return(misclass_rate)
+}
+
+print(paste("misclassification_rate", get_missclass_rate(test$class, test$pred)))
+
+ggplot(data=test, aes(x=alcohol, y=fixed.acidity, col=pred)) +
+  geom_point()
+```
+
+#### b)
+```{r}
+grid = data.frame(alcohol=seq(from=8, to=14, length.out=100), 
+           fixed.acidity=seq(from=3, to=15, length.out=100))
+grid = expand.grid(grid$alcohol, grid$fixed.acidity)
+colnames(grid) = c("alcohol", "fixed.acidity")
+grid$pred = predict(lda, newdata=grid)$class
+
+ggplot(data=grid, aes(x=alcohol, y=fixed.acidity, col=pred)) +
+  geom_point()
+```
+
+#### c)
+```{r}
+qda = qda(class~alcohol+fixed.acidity, data=train)
+test$qda_pred = predict(qda, newdata=test)$class
+
+print(paste("misclassification_rate", get_missclass_rate(test$class, test$qda_pred)))
+
+ggplot(data=test, aes(x=alcohol, y=fixed.acidity, col=qda_pred)) +
+  geom_point()
+
+grid$qda_pred = predict(qda, newdata=grid)$class
+
+ggplot(data=grid, aes(x=alcohol, y=fixed.acidity, col=qda_pred)) +
+  geom_point()
+```
+
+#### d)
+```{r}
+library(rrcov)
+rob_lda = Linda(class~alcohol+fixed.acidity, data=train)
+test$rob_lda_pred = predict(rob_lda, dplyr::select(test, c(alcohol, fixed.acidity)))@classification
+
+print(paste("misclassification_rate", get_missclass_rate(test$class, test$rob_lda_pred)))
+
+ggplot(data=test, aes(x=alcohol, y=fixed.acidity, col=rob_lda_pred)) +
+  geom_point()
+
+grid$rob_lda_pred = predict(rob_lda, dplyr::select(grid, c(alcohol, fixed.acidity)))@classification
+
+ggplot(data=grid, aes(x=alcohol, y=fixed.acidity, col=rob_lda_pred)) +
+  geom_point()
+```
+
+```{r}
+library(rrcov)
+rob_qda = QdaCov(class~alcohol+fixed.acidity, data=train)
+test$rob_qda_pred = predict(rob_qda, dplyr::select(test, c(alcohol, fixed.acidity)))@classification
+
+print(paste("misclassification_rate", get_missclass_rate(test$class, test$rob_qda_pred)))
+
+ggplot(data=test, aes(x=alcohol, y=fixed.acidity, col=rob_qda_pred)) +
+  geom_point()
+
+grid$rob_qda_pred = predict(rob_qda, dplyr::select(grid, c(alcohol, fixed.acidity)))@classification
+
+ggplot(data=grid, aes(x=alcohol, y=fixed.acidity, col=rob_qda_pred)) +
+  geom_point()
+```
+
+#### e) #TODO
+
+### 2.
+```{r}
+train100 = train[sample(nrow(train), 100), ]
+test100 = test[sample(nrow(test), 100), ]
+test100_X = dplyr::select(test100, -c(class, pred, qda_pred, rob_lda_pred, rob_qda_pred))
+
+lda = lda(class~., data=train100)
+lda_posterior = predict(lda, newdata=test100)$posterior
+print(paste("misclassification_rate", get_missclass_rate(test$class, test$pred)))
+
+qda = qda(class~., data=train100)
+qda_posterior = predict(qda, newdata=test100)$posterior
+
+rob_lda = Linda(class~., data=train100)
+test100$rob_lda_pred = predict(rob_lda, test100_X)@classification
+
+rob_qda = QdaCov(class~., data=train100)
+test100$rob_qda_pred = predict(rob_qda, test100_X)@classification
+```
+

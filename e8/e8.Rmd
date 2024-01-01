@@ -1,0 +1,101 @@
+---
+title: "Exercise 8"
+author: "Tobias Raidl, 11717659"
+date: "2023-12-12"
+output:
+  pdf_document:
+    toc: true
+header-includes:
+  \usepackage{fvextra}
+  \DefineVerbatimEnvironment{Highlighting}{Verbatim}{breaklines,commandchars=\\\{\}}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, tidy=TRUE)
+```
+
+```{r}
+library(ggplot2movies)
+data(movies)
+df = movies[movies$Short == 1 & movies$year >= 2000, ]
+```
+
+# 1
+Multiple correlation analysis: Compute the multiple correlation between the
+variable rating and the matrix consisting of the variables year, length, budget,
+votes. Delete observations containing missing values. It might be advisable to
+transform “budget” and “votes”.
+```{r}
+library(dplyr)
+df = na.omit(df)
+x = df$rating
+Y = select(df, c(year, length, budget, votes))
+Y
+
+hist(Y$budget)
+Y$budget = log(Y$budget)
+hist(Y$budget)
+hist(Y$votes)
+Y$votes = log(Y$votes)
+hist(Y$votes)
+```
+
+## a
+Compute the multiple correlation coefficient. How can you interpret the
+coefficients of the linear predictor function?
+```{r}
+covmat_xY = cov(cbind(x, Y))
+covmat_YY = covmat_xY[-1, -1]
+cov_xY = covmat_xY[-1, 1]
+str(t(cov_xY))
+str(solve(covmat_YY))
+str(cov_xY)
+numerator = t(cov_xY) %*% solve(covmat_YY) %*% cov_xY
+mult_cor_coef = sqrt(numerator/ var(x))
+```
+
+## b
+ Is the multiple correlation coefficient significantly different from zero?
+```{r}
+
+```
+
+## c
+Use the function CCAgrid from the R package ccaPP – see help. Set the argument method="pearson" and compare the results with those from above.
+Use method="spearman" and compare with the previous results. What is
+the methodological difference?
+```{r}
+library(ccaPP)
+
+CCAgrid(x, Y, method="pearson")
+
+CCAgrid(x, Y, method="spearman")
+```
+The Pearson Correlation Coefficient assesses the linear relationship between variables, while the Spearman Correlation Coefficient evaluates the monotonic relationship. Spearman does not assume normally distributed data.
+
+## d
+Use the function permTest from the library(ccaPP). This function is performing a permutation test for uncorrelatedness, by permuting the observations of the first input. How and why does this work? What is the outcome?
+Compare with the result in (b).
+```{r}
+permTest(x, Y)
+```
+
+# 2
+Canonical correlation analysis: Compute the canonical correlation between
+the matrices consisting of the variables year, length, budget, rating, votes and the
+variables Action, Animation, Comedy, Drama, Documentary, Romance. Select
+(transform) the observations according to the instructions at the beginning.
+
+## a
+ Use the function cancor() – see help. Center and scale the data (why?).
+How strong is the linear relationship? How can you interpret the linear
+combinations for the X and Y data?
+```{r}
+X2 = select(df, c(year, length, budget, rating, votes))
+Y2 = select(df, c(Action, Animation, Comedy, Drama, Documentary, Romance))
+X2_scaled = scale(X2)
+Y2_scaled = scale(Y2)
+cancor = cancor(X2_scaled, Y2_scaled)
+```
+
+
